@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/an-dot-su4/minecraft_blueprints/schema/blueprint.schema.json",
+  "title": "マイクラ設計図",
+  "description": "サイトに投稿する設計図の形式。細かい上限（範囲の大きさなど）は src/shared/validate.ts が正。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "edition", "title", "palette"],
+  "anyOf": [{ "required": ["ops"] }, { "required": ["blocks"] }],
+  "definitions": {
+    "int": { "type": "integer", "minimum": -1024, "maximum": 1024 },
+    "num": { "type": "number", "minimum": -4096, "maximum": 4096 },
+    "vec": { "type": "array", "items": { "$ref": "#/definitions/int" }, "minItems": 3, "maxItems": 3 },
+    "vecf": { "type": "array", "items": { "$ref": "#/definitions/num" }, "minItems": 3, "maxItems": 3 },
+    "box": { "type": "array", "items": { "$ref": "#/definitions/vec" }, "minItems": 2, "maxItems": 2 },
+    "dir": { "enum": ["N", "S", "E", "W", "U", "D"], "description": "向き。N=北(-z) S=南(+z) E=東(+x) W=西(-x) U=上 D=下" },
+    "range": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": { "anyOf": [{ "$ref": "#/definitions/num" }, { "type": "null" }] },
+      "description": "[最小, 最大]（両端を含む）。null は制限なし"
+    }
+  },
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "edition": { "enum": ["bedrock", "java"], "description": "bedrock=統合版, java=Java版" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "summary": { "type": "string", "maxLength": 2000 },
+    "author": { "type": "string", "maxLength": 40 },
+    "tags": { "type": "array", "maxItems": 10, "items": { "type": "string", "minLength": 1, "maxLength": 20 } },
+    "palette": {
+      "type": "object",
+      "description": "ブロックの種類。キーは ops や blocks の t で使う名前",
+      "minProperties": 1,
+      "maxProperties": 200,
+      "propertyNames": { "pattern": "^[A-Za-z0-9_:.-]{1,40}$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "color"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 40, "description": "凡例に出す名前" },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "shape": {
+            "enum": ["box", "slabBottom", "slabTop", "carpet", "trapdoor", "torch", "liquid", "flowing"],
+            "description": "表示の形。trapdoor は d の側に立てた板、flowing は流れる水（薄く表示）"
+          },
+          "label": { "type": "string", "maxLength": 2, "description": "配置図のマスに出す文字" },
+          "item": { "type": "string", "maxLength": 40, "description": "素材表でまとめる名前（省略時は name）" },
+          "count": { "type": "boolean", "description": "false なら素材表に数えない" },
+          "mc": { "type": "string", "maxLength": 100, "description": "ゲーム内のブロックID（例: minecraft:hopper）" }
+        }
+      }
+    },
+    "ops": {
+      "type": "array",
+      "maxItems": 20000,
+      "description": "上から順に適用し、後のものが上書きする",
+      "items": {
+        "oneOf": [
+          { "type": "object", "additionalProperties": false, "required": ["fill", "t"],
+            "properties": { "fill": { "$ref": "#/definitions/box" }, "t": { "type": "string" }, "d": { "$ref": "#/definitions/dir" }, "keep": { "type": "boolean" } } },
+          { "type": "object", "additionalProperties": false, "required": ["walls", "t"],
+            "description": "各高さで箱の外周だけを埋める（上下のふたなし）",
+            "properties": { "walls": { "$ref": "#/definitions/box" }, "t": { "type": "string" }, "d": { "$ref": "#/definitions/dir" }, "keep": { "type": "boolean" } } },
+          { "type": "object", "additionalProperties": false, "required": ["set", "t"],
+            "properties": { "set": { "$ref": "#/definitions/vec" }, "t": { "type": "string" }, "d": { "$ref": "#/definitions/dir" } } },
+          { "type": "object", "additionalProperties": false, "required": ["clear"],
+            "properties": { "clear": { "$ref": "#/definitions/box" } } }
+        ]
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "maxItems": 300000,
+      "description": "[x, y, z, 種類] または [x, y, z, 種類, 向き]。ops より先に置かれる",
+      "items": {
+        "type": "array", "minItems": 4, "maxItems": 5,
+        "items": [
+          { "$ref": "#/definitions/int" }, { "$ref": "#/definitions/int" }, { "$ref": "#/definitions/int" },
+          { "type": "string" }, { "$ref": "#/definitions/dir" }
+        ]
+      }
+    },
+    "layerNames": {
+      "type": "object",
+      "propertyNames": { "pattern": "^-?\\d+$" },
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 60 }
+    },
+    "markers": {
+      "type": "array", "maxItems": 50,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["pos", "label"],
+        "properties": {
+          "pos": { "$ref": "#/definitions/vecf", "description": "足もとの位置" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "style": { "enum": ["solid", "ghost"] }
+        }
+      }
+    },
+    "views": {
+      "type": "array", "maxItems": 10,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 20 },
+          "label": { "type": "string", "minLength": 1, "maxLength": 20 },
+          "caption": { "type": "string", "maxLength": 60 },
+          "clip": {
+            "type": "object", "additionalProperties": false,
+            "properties": { "x": { "$ref": "#/definitions/range" }, "y": { "$ref": "#/definitions/range" }, "z": { "$ref": "#/definitions/range" } }
+          },
+          "exclude": { "type": "array", "items": { "type": "string" } },
+          "camera": { "$ref": "#/definitions/vecf" },
+          "target": { "$ref": "#/definitions/vecf" },
+          "size": { "type": "number", "exclusiveMinimum": 0, "maximum": 2000 }
+        }
+      }
+    },
+    "sideView": {
+      "type": "object", "additionalProperties": false, "required": ["slice", "at"],
+      "properties": {
+        "slice": { "enum": ["x", "z"] },
+        "at": { "$ref": "#/definitions/int" },
+        "alsoShow": {
+          "type": "array",
+          "items": { "type": "object", "required": ["t", "at"], "properties": { "t": { "type": "string" }, "at": { "$ref": "#/definitions/int" } } }
+        },
+        "labels": {
+          "type": "array", "maxItems": 50,
+          "items": { "type": "array", "minItems": 2, "maxItems": 2, "items": [{ "$ref": "#/definitions/num" }, { "type": "string", "maxLength": 30 }] }
+        }
+      }
+    },
+    "notes": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "viewer": { "type": "string", "maxLength": 2000 },
+        "side": { "type": "string", "maxLength": 2000 },
+        "plan": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "materials": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "notes": {
+          "type": "object",
+          "description": "item 名 → 補足。{n} は合計、{n*5} は掛け算、{パレットのキー} はその種類の数",
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 200 }
+        },
+        "extra": {
+          "type": "array", "maxItems": 50,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["name", "count"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+              "count": { "type": "string", "minLength": 1, "maxLength": 20 },
+              "note": { "type": "string", "maxLength": 200 }
+            }
+          }
+        }
+      }
+    },
+    "steps": { "type": "string", "maxLength": 20000, "description": "作る順番（Markdown）" },
+    "usage": { "type": "string", "maxLength": 20000, "description": "使い方（Markdown）" }
+  }
+}
