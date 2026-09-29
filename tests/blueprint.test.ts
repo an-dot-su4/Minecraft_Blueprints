@@ -7,7 +7,7 @@ import { validateBlueprint } from '../src/shared/validate';
 // @ts-expect-error JS のまま置いている比較用の元コード
 import { build } from './fixtures/original-build.js';
 
-const sample = JSON.parse(readFileSync(new URL('../blueprints/sky-trap-tower.json', import.meta.url), 'utf8')) as Blueprint;
+const sample = JSON.parse(readFileSync(new URL('../blueprints/bedrock/sky-trap-tower.json', import.meta.url), 'utf8')) as Blueprint;
 const sortKey = (b: { x: number; y: number; z: number }) => `${b.x},${b.y},${b.z}`;
 const norm = (list: { x: number; y: number; z: number; t: string; d?: string }[]) =>
   list.map((b) => ({ x: b.x, y: b.y, z: b.z, t: b.t, d: b.d ?? null })).sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
@@ -95,5 +95,17 @@ describe('materials helpers', () => {
     expect(stacks(5)).toBe('5個');
     expect(stacks(64)).toBe('1スタック');
     expect(stacks(130)).toBe('2スタック＋2');
+  });
+});
+
+describe('compare スクリプト', () => {
+  it('HTML から build() を取り出し、違いを数える', async () => {
+    const { extractBuild, diffBlocks } = await import('../scripts/compare');
+    const html = '<script>const a=1;\nfunction build(){ const B=[]; if(true){B.push({x:0,y:0,z:0,t:"a"});} return B; }\nfoo();</script>';
+    const src = extractBuild(html);
+    const blocks = new Function(`${src}; return build();`)();
+    expect(blocks).toEqual([{ x: 0, y: 0, z: 0, t: 'a' }]);
+    expect(diffBlocks(blocks, [{ x: 0, y: 0, z: 0, t: 'a' }]).count).toBe(0);
+    expect(diffBlocks(blocks, [{ x: 0, y: 0, z: 0, t: 'b' }, { x: 1, y: 0, z: 0, t: 'a' }]).count).toBe(2);
   });
 });

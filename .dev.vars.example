@@ -1,2 +1,0 @@
-# ローカル開発用。.dev.vars にコピーして使う（.dev.vars はコミットしない）
-SITE_PASSPHRASE=test-pass

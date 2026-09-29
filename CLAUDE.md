@@ -1,15 +1,17 @@
 # CLAUDE.md
 
-マイクラ設計図を保存・共有するサイト。利用者は日本語話者なので、画面の文言・ドキュメント・コミットメッセージは日本語で書く。
+マイクラ設計図を GitHub Pages で公開する静的サイト。利用者は日本語話者なので、画面の文言・ドキュメント・コミットメッセージは日本語で書く。
+
+## 設計図の追加・更新
+`.claude/skills/add-blueprint/SKILL.md` の手順に従う。main に直接 push してよいのは `blueprints/` の追加・更新だけ。それ以外の変更はブランチを切って PR にする。
 
 ## 構成
-- `src/shared/` : 画面と `functions/` の両方で使うコード（型、ops の展開、形式チェック、素材の集計）。DOM や Node の API を使わない
+- `blueprints/<edition>/<slug>.json` : 設計図。フォルダと JSON の `edition` を一致させる。slug はそのまま URL（`be/<slug>/`）になるので変えない
+- `src/shared/` : 型、ops の展開、形式チェック、素材の集計。ブラウザと Node（scripts）の両方で使うので DOM や Node の API を使わない
 - `src/viewer/` : 設計図1件の表示（three.js の3D、SVG の側面図・配置図）
-- `src/pages/` : 一覧・詳細・投稿/編集・合言葉。ルーティングは `src/main.ts`
-- `functions/api/` : Cloudflare Pages Functions。D1（`DB`）に一覧情報、R2（`BUCKET`）に JSON 本体
-- `blueprints/` : 見本の設計図。テストで JSON Schema と形式チェックの両方を通るか確かめている
+- `src/pages/`, `src/main.ts` : 一覧と詳細。パスは `import.meta.env.BASE_URL`（`src/site.ts` の `url()`）を必ず通す
+- `scripts/` : `build-data.ts`（public/data/ に書き出し）、`postbuild.ts`（設計図ごとの index.html と 404.html）、`check.ts`、`compare.ts`
 
 ## 決まりごと
-- 設計図の形式を変えるときは `src/shared/types.ts`・`src/shared/validate.ts`・`schema/blueprint.schema.json`・`docs/claude-prompt.md` をそろえて直す
-- 版（edition）ごとの違いは `src/shared/editions.ts` にまとめる
+- 設計図の形式を変えるときは `src/shared/types.ts`・`src/shared/validate.ts`・`schema/blueprint.schema.json`・`.claude/skills/add-blueprint/reference.md` をそろえて直す
 - 変更後は `npm run typecheck` と `npm test` を通す

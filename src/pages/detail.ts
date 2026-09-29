@@ -1,50 +1,31 @@
-import { ApiError, api, mine } from '../api';
 import { blueprintPath } from '../shared/editions';
 import type { Edition } from '../shared/types';
+import { loadBlueprint, url } from '../site';
 import { renderBlueprint } from '../viewer/blueprint-view';
 import { esc } from '../viewer/svg';
 
-export const JUST_POSTED = 'mcbp:justPosted';
-
-export async function renderDetail(root: HTMLElement, edition: Edition, id: string) {
+export async function renderDetail(root: HTMLElement, edition: Edition, slug: string) {
   root.innerHTML = '<p>読み込み中…</p>';
-  let stored;
+  let bp;
   try {
-    stored = await api.get(id);
-  } catch (x) {
-    document.title = '設計図が見つかりません';
-    root.innerHTML = x instanceof ApiError && x.status === 404
-      ? '<h1>設計図が見つかりません</h1><p>URL が正しいか確かめてください。消された可能性もあります。</p>'
-      : `<h1>読み込めませんでした</h1><p class="warn">${esc((x as Error).message)}</p>`;
+    bp = await loadBlueprint(edition, slug);
+  } catch (e) {
+    root.innerHTML = `<h1>読み込めませんでした</h1><p class="warn">${esc((e as Error).message)}</p>`;
     return;
   }
-  // 版が URL と違うときは正しい URL に直す
-  if (stored.edition !== edition) history.replaceState(null, '', blueprintPath(stored.edition, id));
-  document.title = stored.blueprint.title;
+  if (!bp) {
+    document.title = '設計図が見つかりません';
+    root.innerHTML = `<h1>設計図が見つかりません</h1><p>URL が正しいか確かめてください。</p><p><a href="${url()}">一覧へ戻る</a></p>`;
+    return;
+  }
+  document.title = bp.title;
+  const shareUrl = location.origin + url(blueprintPath(edition, slug));
 
-  const path = blueprintPath(stored.edition, id);
-  const shareUrl = location.origin + path;
-  const editKey = mine.key(id);
-
-  let notice = '';
-  try {
-    const just = JSON.parse(sessionStorage.getItem(JUST_POSTED) ?? 'null');
-    if (just?.id === id) {
-      sessionStorage.removeItem(JUST_POSTED);
-      const editUrl = `${shareUrl}/edit#key=${encodeURIComponent(just.editKey)}`;
-      notice = `<div class="notice" role="status">
-        <p class="ok"><b>${just.created ? '投稿しました。' : '更新しました。'}</b></p>
-        ${just.created ? `<p>見せたい人にはこの URL を送ってください。</p><p><code>${esc(shareUrl)}</code></p>
-        <p class="warn">あとで直すときは次の<b>編集用リンク</b>が必要です。人には送らず、メモなどに残しておいてください（この端末には保存済みです）。</p>
-        <p><code>${esc(editUrl)}</code></p>` : ''}
-      </div>`;
-    }
-  } catch { /* sessionStorage が使えない環境では出さない */ }
-
-  root.innerHTML = `${notice}
+  root.innerHTML = `
     <div class="row">
+      <a class="btn" href="${url(`?edition=${edition}`)}">← 一覧</a>
       <button data-el="copy">URL をコピー</button>
-      ${editKey ? `<a class="btn" href="${path}/edit#key=${encodeURIComponent(editKey)}">編集する</a>` : ''}
+      <a class="btn" href="${url(`data/${edition}/${slug}.json`)}" download="${esc(slug)}.json">JSON</a>
     </div>
     <article data-el="bp"></article>`;
   const copy = root.querySelector<HTMLButtonElement>('[data-el="copy"]')!;
@@ -52,5 +33,5 @@ export async function renderDetail(root: HTMLElement, edition: Edition, id: stri
     try { await navigator.clipboard.writeText(shareUrl); copy.textContent = 'コピーしました'; }
     catch { prompt('この URL をコピーしてください', shareUrl); }
   };
-  return renderBlueprint(root.querySelector<HTMLElement>('[data-el="bp"]')!, stored.blueprint);
+  return renderBlueprint(root.querySelector<HTMLElement>('[data-el="bp"]')!, bp);
 }

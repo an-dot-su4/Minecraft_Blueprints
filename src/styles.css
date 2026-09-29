@@ -71,7 +71,5 @@ ol, ul { padding-left: 1.3em; }
 .cards p { margin: 2px 0; font-size: 14px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 label.field { display: block; margin-top: 12px; font-size: 14px; color: var(--sub); }
-.errors { white-space: pre-wrap; font-size: 13px; }
-.notice { background: var(--panel); border: 2px solid var(--ok); padding: 10px 14px; margin-top: 12px; }
-.notice code { word-break: break-all; }
-.preview { border-top: 2px dashed var(--line); margin-top: 24px; padding-top: 8px; }
+.tagrow button { font-size: 13px; padding: 3px 8px; }
+

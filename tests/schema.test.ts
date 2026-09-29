@@ -1,24 +1,30 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { relative } from 'node:path';
 import Ajv from 'ajv';
 import { describe, expect, it } from 'vitest';
 import { validateBlueprint } from '../src/shared/validate';
+import { ROOT, listFiles, loadFile } from '../scripts/catalog';
 
 const read = (p: string) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
 const schema = read('../schema/blueprint.schema.json');
 const validateSchema = new Ajv({ allErrors: true, strict: false }).compile(schema);
-const files = readdirSync(new URL('../blueprints/', import.meta.url)).filter((f) => f.endsWith('.json'));
+const files = listFiles().map((f) => relative(ROOT, f));
 
-// blueprints/ に置いた設計図は、JSON Schema とサイトの形式チェックの両方を通ること
-describe.each(files)('blueprints/%s', (file) => {
-  const bp = read(`../blueprints/${file}`);
+// blueprints/ に置いた設計図は、JSON Schema とサイトの形式チェック（置き場所・ファイル名・版の一致を含む）を通ること
+describe.each(files)('%s', (file) => {
+  const bp = JSON.parse(readFileSync(`${ROOT}/${file}`, 'utf8'));
   it('JSON Schema を通る', () => {
     validateSchema(bp);
     expect(validateSchema.errors ?? []).toEqual([]);
   });
   it('サイトの形式チェックを通る', () => {
-    const r = validateBlueprint(bp);
+    const r = loadFile(`${ROOT}/${file}`);
     expect(r.ok ? [] : r.errors).toEqual([]);
   });
+});
+
+it('設計図が1件以上ある', () => {
+  expect(files.length).toBeGreaterThan(0);
 });
 
 describe('JSON Schema とサイトの形式チェックが同じものをはじく', () => {

@@ -1,36 +1,53 @@
 # Minecraft_Blueprints
 
-マイクラの設計図置き場。設計図を保存して、知り合いに URL で見せるためのサイトです。
+マイクラの設計図置き場です。設計図を保存して、知り合いに URL で見せるためのサイトです。
+
+**サイト**: https://an-dot-su4.github.io/Minecraft_Blueprints/
 
 - 設計図1件ごとに、素材表・3D表示・横から見た高さ・段ごとの配置図・作る順番を表示します
-- 設計図は JSON で保存し、表示部分はサイトで共通です（[形式](schema/blueprint.schema.json) / [見本](blueprints/sky-trap-tower.json)）
-- 統合版と Java 版を分けて管理します（URL は `/be/<id>` と `/je/<id>`）
-- 一覧と投稿には合言葉が必要です。設計図の URL は知っている人だけが開けます（検索には出ません）
+- 統合版と Java 版を分けて管理します（URL は `be/<名前>/` と `je/<名前>/`）
+- 検索エンジンには出ないようにしています（ただしリポジトリは公開なので、中身は GitHub からも読めます）
 
-## 投稿のしかた
+## 設計図の追加のしかた
 
-| 方法 | 状態 |
-|---|---|
-| JSON を貼る（Claude で作ったもの） | 使えます。頼み方は [docs/claude-prompt.md](docs/claude-prompt.md) |
-| `.mcstructure` を読み込む（Windows 版で書き出したもの） | 準備中 |
-| ブラウザで段ごとに描く（スマホ向け） | 準備中 |
+Claude（Claude Code）に頼みます。このリポジトリには、設計図を追加するための Skill（[`.claude/skills/add-blueprint`](.claude/skills/add-blueprint/SKILL.md)）が入っています。
 
-投稿すると「編集用リンク」が出ます。あとで直したり消したりするときに使うので、人には送らずに保管してください。
+> この設計図をサイトに追加して https://claude.ai/artifact/xxxx
+
+> 統合版のアイアンゴーレムトラップの設計図を作って、サイトに載せて
+
+Claude が次の流れで進めます。
+
+1. 渡された設計図（アーティファクトの URL・HTML・JSON・言葉での説明）を読む
+2. `blueprints/bedrock/` か `blueprints/java/` に JSON として書く
+3. チェック（と、元の設計図とブロックが同じかの比較）をする
+4. main に push する
+
+push すると、数分でサイトに反映されます。
+
+Claude Code 以外（claude.ai のチャットなど）で JSON だけ作ってもらう場合は、[形式の説明](.claude/skills/add-blueprint/reference.md)を渡してください。
+
+## 最初の1回だけの設定
+
+1. リポジトリを **Public** にする（Settings → General → Danger Zone → Change visibility）
+2. **Settings → Pages → Build and deployment → Source** を「**GitHub Actions**」にする
+3. main に push すると（または Actions の「公開」を手動で実行すると）公開されます
 
 ## 構成
 
-- 画面: Vite + TypeScript + three.js（`src/`）
-- API: Cloudflare Pages Functions（`functions/`）
-- 保存先: Cloudflare D1（一覧情報）と R2（設計図の JSON）
-- 形式チェック: `src/shared/validate.ts`（画面とサーバーの両方で使用）と `schema/blueprint.schema.json`
+| 場所 | 中身 |
+|---|---|
+| `blueprints/<bedrock\|java>/*.json` | 設計図（[形式](schema/blueprint.schema.json)） |
+| `src/` | サイトの画面（Vite + TypeScript + three.js） |
+| `scripts/` | ビルド用のデータ書き出し、`check`（チェックと要約）、`compare`（元の設計図との比較） |
+| `.claude/skills/add-blueprint/` | 設計図を追加するための Skill と形式の説明 |
+| `.github/workflows/deploy.yml` | main への push で GitHub Pages に公開 |
 
-公開までの手順は [docs/setup.md](docs/setup.md) を見てください。
-
-## 開発
+## 手元で動かす
 
 ```sh
 npm install
-npm test          # 形式チェック・展開・素材数のテスト
-npm run typecheck
-npm run preview   # ビルドして http://localhost:8788 で起動（先に docs/setup.md の「手元で動かす」）
+npm run dev        # http://localhost:5173
+npm run check      # 設計図のチェックと要約
+npm test
 ```
